@@ -79,7 +79,7 @@ int main(int argc, char** argv)
 			result = osi_navigateTo(states, param);
 			printf("Amount of results: %d\n", result->referencesCount);
 			for (int i = 0; i < result->referencesCount; i++) {
-				item = list->array[result->references[i++]];
+				item = list->array[result->references[i]];
 				printf("%s %s %d\n", item->state->text, item->city->text, item->statistic->cases);
 			}
 			break;
