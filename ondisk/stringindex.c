@@ -52,20 +52,21 @@ StringIndex StringIndex_private_StringIndex_findNode(
 	int position)
 {	
 	char sanitized = StringIndex_private_static_char_sanitize(string[position]);
-	if (sanitized == '\0') return this;	
+	StringIndex nextNode = this;
+	if (sanitized == '\0') return nextNode;	
 	
-	if (sanitized > this->letter) {		
-		if (this->next == NULL)
-			this = StringIndex_private_static_StringIndex_insert(this, this->next, sanitized);		
+	if (sanitized > nextNode->letter) {		
+		if (nextNode->next == NULL)
+			nextNode = StringIndex_private_static_StringIndex_insert(nextNode, nextNode->next, sanitized);		
 		else 
-			this = this->next;
-	} else if (sanitized < this->letter) {
-		this = StringIndex_private_static_StringIndex_insert(this->previous, this, sanitized);	
+			nextNode = nextNode->next;
+	} else if (sanitized < nextNode->letter) {
+		nextNode = StringIndex_private_static_StringIndex_insert(nextNode->previous, nextNode, sanitized);	
 	} else {		
 		position++;
-		this = StringIndex_private_StringIndex_getDown(this);
+		nextNode = StringIndex_private_StringIndex_getDown(nextNode);
 	}	
-	return StringIndex_private_StringIndex_findNode(this, string, position);
+	return StringIndex_private_StringIndex_findNode(nextNode, string, position);
 }
 
 void StringIndex_private_StringIndex_resize(StringIndex this) {	
