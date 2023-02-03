@@ -1,15 +1,9 @@
+#include <stdlib.h>
+#include <stdio.h>
+
 #ifndef STRINGINDEX_
 #define STRINGINDEX_
 typedef struct stringindex* StringIndex;
-
-struct diskindex {
-	char letter;
-	int seek_previous;
-	int seek_next;
-	int seek_down;
-	int seek_up;
-	
-};
 
 struct stringindex {
 	char letter;
@@ -23,14 +17,16 @@ struct stringindex {
 	int referencesCount;
 };
 
-char csi_sanitize(char cc);
-StringIndex csi_insert(StringIndex head, StringIndex tail, char cc);
-StringIndex csi_insertBelow(StringIndex node);
-StringIndex csi_findNode(StringIndex index, char *string, int position);
-void csi_resize(StringIndex index);
+char 		StringIndex_private_static_char_sanitize(char cc);
+StringIndex StringIndex_private_static_StringIndex_insert(StringIndex head, StringIndex tail, char cc);
+StringIndex StringIndex_private_StringIndex_getDown(StringIndex this);
+StringIndex StringIndex_private_StringIndex_findNode(StringIndex this, char *string, int position);
+void	 	StringIndex_private_StringIndex_resize(StringIndex this);
 
-StringIndex osi_navigateTo(StringIndex index, char *string);
-StringIndex osi_createEmpty();
-void osi_addReference(StringIndex index, int reference);
-char *osi_setText(StringIndex index, char *string);
+StringIndex StringIndex_public_StringIndex_navigateTo(StringIndex this, char *string);
+StringIndex StringIndex_public_static_StringIndex_constructor();
+void 		StringIndex_public_addReference(StringIndex this, int reference);
+char 	   *StringIndex_public_string_setText(StringIndex this, char *string);
+StringIndex StringIndex_public_StringIndex_wildcardNavigate(StringIndex this, char *query);
+void 		StringIndex_public_iterate(StringIndex this, void* param, void (*iterator)(StringIndex item, void* param));
 #endif

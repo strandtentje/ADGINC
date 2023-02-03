@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include "stringindex.h"
 #include "covid.h"
 
@@ -19,18 +20,18 @@ void loadfromfile(FILE *file, RegistrationList list, StringIndex cities, StringI
 			tmpCity, tmpState, &tmpReg->locationcode, 
 			&tmpReg->statistic->cases, &tmpReg->statistic->deaths);
 
-		tmpReg->city =  osi_navigateTo(cities, tmpCity);
-		tmpReg->state = osi_navigateTo(states, tmpState);
+		tmpReg->city =  StringIndex_public_StringIndex_navigateTo(cities, tmpCity);
+		tmpReg->state = StringIndex_public_StringIndex_navigateTo(states, tmpState);
 
-		if (osi_setText(tmpReg->city, tmpCity) == tmpCity) {
+		if (StringIndex_public_string_setText(tmpReg->city, tmpCity) == tmpCity) {
 			tmpCity = calloc(40, sizeof(char));
 		}
-		if (osi_setText(tmpReg->state, tmpState) == tmpState) {
+		if (StringIndex_public_string_setText(tmpReg->state, tmpState) == tmpState) {
 			tmpState = calloc(40, sizeof(char));
 		}
 
-		osi_addReference(tmpReg->city, list->count);
-		osi_addReference(tmpReg->state, list->count);
+		StringIndex_public_addReference(tmpReg->city, list->count);
+		StringIndex_public_addReference(tmpReg->state, list->count);
 
 		rl_add(list, tmpReg);
 	}
@@ -42,14 +43,17 @@ void loadfromfile(FILE *file, RegistrationList list, StringIndex cities, StringI
 int main(int argc, char** argv) 
 {	
 	RegistrationList list = rl_create();
-	StringIndex cities = osi_createEmpty();
-	StringIndex states = osi_createEmpty();
+	StringIndex cities = StringIndex_public_static_StringIndex_constructor();
+	StringIndex states = StringIndex_public_static_StringIndex_constructor();
 
 	printf("!\n");
 
 	char *param = calloc(40, sizeof(char));
 	StringIndex result;
 	Registration item;
+
+	clock_t start, end;
+	double cpu_time_used;
 
 	for (char cmd = 'h'; cmd != 'x'; scanf("%c", &cmd))
 	{
@@ -74,18 +78,21 @@ int main(int argc, char** argv)
 			printf("Query?\n");
 			scanf("%s", param);
 			printf("Navigating.\n");
-			result = osi_navigateTo(cities, param);
+			start = clock();
+			result = StringIndex_public_StringIndex_navigateTo(cities, param);
 			printf("Amount of results: %d\n", result->referencesCount);
 			for (int i = 0; i < result->referencesCount; i++) {
 				item = list->array[result->references[i]];
 				printf("%s %s %d\n", item->state->text, item->city->text, item->statistic->cases);
 			}
+			end = clock();			
+			printf("start ticks end ticks %d - %d / %d\n", start, end, CLOCKS_PER_SEC);
 			break;
 		case 's':
 			printf("Query?\n");
 			scanf("%s", param);
 			printf("Navigating.\n");
-			result = osi_navigateTo(states, param);
+			result = StringIndex_public_StringIndex_navigateTo(states, param);
 			printf("Amount of results: %d\n", result->referencesCount);
 			for (int i = 0; i < result->referencesCount; i++) {
 				item = list->array[result->references[i]];

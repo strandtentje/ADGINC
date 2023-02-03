@@ -3,7 +3,7 @@
 #include <string.h>
 #include "stringindex.h"
 
-char csi_sanitize(char cc) { // Given Character
+char StringIndex_private_static_char_sanitize(char cc) { // Given Character
 	if (cc == '\0')		 // When it is a null terminator
 		return '\0';     // Preserve it or we have a string that will never end
 	if (cc > 'Z') 		 // When above capitals range
@@ -15,7 +15,7 @@ char csi_sanitize(char cc) { // Given Character
 	return cc;		     // When Capital, return capital.
 }
 
-StringIndex osi_createEmpty()
+StringIndex StringIndex_public_static_StringIndex_constructor()
 {
 	StringIndex empty = malloc(sizeof(struct stringindex));			
 	memset(empty, 0, sizeof(struct stringindex));
@@ -26,9 +26,9 @@ StringIndex osi_createEmpty()
 	return empty;
 }
 
-StringIndex csi_insert(StringIndex head, StringIndex tail, char cc)
+StringIndex StringIndex_private_static_StringIndex_insert(StringIndex head, StringIndex tail, char cc)
 {
-	StringIndex inserted = osi_createEmpty();
+	StringIndex inserted = StringIndex_public_static_StringIndex_constructor();
 	if (head != NULL)
 		head->next = inserted;
 	if (tail != NULL)
@@ -39,54 +39,72 @@ StringIndex csi_insert(StringIndex head, StringIndex tail, char cc)
 	return inserted;
 }
 
-StringIndex csi_insertBelow(StringIndex node)
+StringIndex StringIndex_private_StringIndex_getDown(StringIndex this)
 {	
-	if (node->down != NULL) return node->down;
-	node->down = osi_createEmpty();
-	return node->down;
+	if (this->down != NULL) return this->down;
+	this->down = StringIndex_public_static_StringIndex_constructor();
+	return this->down;
 }
 
-StringIndex csi_findNode(
-	StringIndex index, 
+StringIndex StringIndex_private_StringIndex_findNode(
+	StringIndex this, 
 	char *string, 
 	int position)
 {	
-	char sanitized = csi_sanitize(string[position]);
-	if (sanitized == '\0') return index;	
+	char sanitized = StringIndex_private_static_char_sanitize(string[position]);
+	if (sanitized == '\0') return this;	
 	
-	if (sanitized > index->letter) {		
-		if (index->next == NULL)
-			index = csi_insert(index, index->next, sanitized);		
+	if (sanitized > this->letter) {		
+		if (this->next == NULL)
+			this = StringIndex_private_static_StringIndex_insert(this, this->next, sanitized);		
 		else 
-			index = index->next;
-	} else if (sanitized < index->letter) {
-		index = csi_insert(index->previous, index, sanitized);	
+			this = this->next;
+	} else if (sanitized < this->letter) {
+		this = StringIndex_private_static_StringIndex_insert(this->previous, this, sanitized);	
 	} else {		
 		position++;
-		index = csi_insertBelow(index);
+		this = StringIndex_private_StringIndex_getDown(this);
 	}	
-	return csi_findNode(index, string, position);
+	return StringIndex_private_StringIndex_findNode(this, string, position);
 }
 
-void csi_resize(StringIndex index) {	
-	index->referencesSize = index->referencesSize * 2 + 1;	
-	index->references = realloc(index->references, index->referencesSize * sizeof(int));	
+void StringIndex_private_StringIndex_resize(StringIndex this) {	
+	this->referencesSize = this->referencesSize * 2 + 1;	
+	this->references = realloc(this->references, this->referencesSize * sizeof(int));	
 }
 
-char *osi_setText(StringIndex index, char *string) {	
-	if (index->text == NULL)		
-		index->text = string;
+char *StringIndex_public_string_setText(StringIndex this, char *string) {	
+	if (this->text == NULL)		
+		this->text = string;
 	
-	return index->text;
+	return this->text;
 }
 
-void osi_addReference(StringIndex index, int reference) {
-	if (index->referencesCount >= index->referencesSize) 
-		csi_resize(index);
+void StringIndex_public_addReference(StringIndex this, int reference) {
+	if (this->referencesCount >= this->referencesSize) 
+		StringIndex_private_StringIndex_resize(this);
 	
-	index->references[index->referencesCount++] = reference;	
+	this->references[this->referencesCount++] = reference;	
 }
 
-StringIndex osi_navigateTo(StringIndex index, char *string) {
-	return csi_findNode(index, string, 0);
+StringIndex StringIndex_public_StringIndex_navigateTo(StringIndex this, char *string) {
+	return StringIndex_private_StringIndex_findNode(this, string, 0);
+}
+
+
+StringIndex StringIndex_public_StringIndex_wildcardNavigate(StringIndex this, char *query) {
+	for (char *i = query; *i != '\0'; i++)
+		if (*i == '*') *i = '\0';
+	return StringIndex_public_StringIndex_navigateTo(this, query);
+}
+
+void StringIndex_public_iterate(
+	StringIndex this, 
+	void* param, 
+	void (*iterator)(StringIndex item, void* param)) {
+	iterator(this, param);
+	if (this->down != NULL)
+		StringIndex_public_iterate(this->down, param, iterator);
+	if (this->next != NULL)
+		StringIndex_public_iterate(this->next, param, iterator);
 }
