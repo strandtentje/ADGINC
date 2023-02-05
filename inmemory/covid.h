@@ -7,9 +7,9 @@ typedef struct registration* Registration;
 typedef struct registrationlist* RegistrationList;
 
 struct datetime {
-	int year;
-	int month;
-	int day;		
+	char day;		
+	char month;
+	short year;
 };
 
 struct statistic {

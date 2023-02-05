@@ -68,6 +68,7 @@ StringIndex csi_findNode(
 	return csi_findNode(index, string, position);
 }
 
+
 void csi_resize(StringIndex index) {	
 	index->referencesSize = index->referencesSize * 2 + 1;	
 	index->references = realloc(index->references, index->referencesSize * sizeof(int));	
