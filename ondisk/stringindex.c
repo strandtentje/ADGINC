@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "stringindex.h"
+#include <assert.h>
 
-char StringIndex_private_static_char_sanitize(char cc) { // Given Character
+char StringIndex_tokenizeOnlyCapitals(char cc) { // Given Character	
 	if (cc == '\0')		 // When it is a null terminator
 		return '\0';     // Preserve it or we have a string that will never end
 	if (cc > 'Z') 		 // When above capitals range
@@ -15,7 +16,29 @@ char StringIndex_private_static_char_sanitize(char cc) { // Given Character
 	return cc;		     // When Capital, return capital.
 }
 
-StringIndex StringIndex_public_static_StringIndex_constructor()
+char StringIndex_tokenizeOnlyNumbers(char cc) {
+	if (cc == '\0')
+		return '\0';
+	if (cc < '0')
+		return '_';
+	if (cc > '9')
+		return '_';
+	return cc;
+}
+
+char StringIndex_tokenizeOnlyHex(char cc) {
+	if (cc == '\0')
+		return '\0';
+	if (cc >= 'a' && cc <= 'f')
+		return cc - 32;
+	if (cc >= 'A' && cc <= 'F')
+		return cc;
+	if (cc >= '0' && cc <= '9')
+		return cc;
+	return '_';
+}
+
+StringIndex StringIndex_public_static_StringIndex_constructor(TokenizerDelegate tokenize)
 {
 	StringIndex empty = malloc(sizeof(struct stringindex));			
 	memset(empty, 0, sizeof(struct stringindex));
@@ -23,16 +46,25 @@ StringIndex StringIndex_public_static_StringIndex_constructor()
 	empty->references = calloc(1, sizeof(int));
 	empty->referencesSize = 1;
 	empty->referencesCount = 0;
+	empty->tokenize = tokenize;
+
 	return empty;
 }
 
-StringIndex StringIndex_private_static_StringIndex_insert(StringIndex head, StringIndex tail, char cc)
+StringIndex StringIndex_private_static_StringIndex_insert(StringIndex head, StringIndex tail, TokenizerDelegate tokenize, char cc)
 {
-	StringIndex inserted = StringIndex_public_static_StringIndex_constructor();
-	if (head != NULL)
+	StringIndex inserted = StringIndex_public_static_StringIndex_constructor(tokenize);
+	if (head != NULL && tail != NULL) {
+		assert(head->up == tail->up);
+	}
+	if (head != NULL) {
 		head->next = inserted;
-	if (tail != NULL)
+		inserted->up = head->up;
+	}
+	if (tail != NULL) {
 		tail->previous = inserted;
+		inserted->up = tail->up;
+	}
 	inserted->previous = head;
 	inserted->next = tail;	
 	inserted->letter = cc;	
@@ -41,8 +73,10 @@ StringIndex StringIndex_private_static_StringIndex_insert(StringIndex head, Stri
 
 StringIndex StringIndex_private_StringIndex_getDown(StringIndex this)
 {	
-	if (this->down != NULL) return this->down;
-	this->down = StringIndex_public_static_StringIndex_constructor();
+	if (this->down == NULL) {
+		this->down = StringIndex_public_static_StringIndex_constructor(this->tokenize);
+		this->down->up = this;
+	}
 	return this->down;
 }
 
@@ -51,17 +85,17 @@ StringIndex StringIndex_private_StringIndex_findNode(
 	char *string, 
 	int position)
 {	
-	char sanitized = StringIndex_private_static_char_sanitize(string[position]);
+	char sanitized = this->tokenize(string[position]);	
 	StringIndex nextNode = this;
 	if (sanitized == '\0') return nextNode;	
 	
 	if (sanitized > nextNode->letter) {		
 		if (nextNode->next == NULL)
-			nextNode = StringIndex_private_static_StringIndex_insert(nextNode, nextNode->next, sanitized);		
+			nextNode = StringIndex_private_static_StringIndex_insert(nextNode, nextNode->next, this->tokenize, sanitized);		
 		else 
 			nextNode = nextNode->next;
 	} else if (sanitized < nextNode->letter) {
-		nextNode = StringIndex_private_static_StringIndex_insert(nextNode->previous, nextNode, sanitized);	
+		nextNode = StringIndex_private_static_StringIndex_insert(nextNode->previous, nextNode, this->tokenize, sanitized);	
 	} else {		
 		position++;
 		nextNode = StringIndex_private_StringIndex_getDown(nextNode);
@@ -69,14 +103,15 @@ StringIndex StringIndex_private_StringIndex_findNode(
 	return StringIndex_private_StringIndex_findNode(nextNode, string, position);
 }
 
+
 void StringIndex_private_StringIndex_resize(StringIndex this) {	
 	this->referencesSize = this->referencesSize * 2 + 1;	
 	this->references = realloc(this->references, this->referencesSize * sizeof(int));	
 }
 
-char *StringIndex_public_string_setText(StringIndex this, char *string) {	
+char *StringIndex_public_string_sourceText(StringIndex this, SourceTextDelegate textSource, void *param) {	
 	if (this->text == NULL)		
-		this->text = string;
+		this->text = textSource(param);
 	
 	return this->text;
 }
@@ -98,14 +133,48 @@ StringIndex StringIndex_public_StringIndex_wildcardNavigate(StringIndex this, ch
 		if (*i == '*') *i = '\0';
 	return StringIndex_public_StringIndex_navigateTo(this, query);
 }
+void StringIndex_public_print(
+	StringIndex this,
+	int depth
+) {
+	if (this == NULL) return;
+	if (depth > 0)
+		printf("%*c %c %s \n", depth, ' ', this->letter, this->text);
+	else 
+		printf("%c %s \n", this->letter, this->text);
+	StringIndex_public_print(this->down, depth + 1);
+	StringIndex_public_print(this->next, depth);
+}
 
 void StringIndex_public_iterate(
 	StringIndex this, 
 	void* param, 
 	void (*iterator)(StringIndex item, void* param)) {
-	iterator(this, param);
-	if (this->down != NULL)
-		StringIndex_public_iterate(this->down, param, iterator);
-	if (this->next != NULL)
-		StringIndex_public_iterate(this->next, param, iterator);
+	StringIndex_public_iterate_range(this, this, NULL, param, iterator);
+}
+
+void StringIndex_public_iterate_range_imp(
+	StringIndex this,
+	StringIndex from,
+	StringIndex to,
+	int *state,
+	void *param,
+	void (*iterator)(StringIndex item, void* param)) {
+	if (this == NULL) return;
+	if (this == from) *state = 1;
+	if (this == to) *state = 2;
+	if (*state == 1) iterator(this, param);
+	if (*state == 2) return;
+	StringIndex_public_iterate_range_imp(this->down, from, to, state, param, iterator);
+	StringIndex_public_iterate_range_imp(this->next, from, to, state, param, iterator);	
+}
+
+void StringIndex_public_iterate_range(
+	StringIndex this,
+	StringIndex from,
+	StringIndex to,
+	void *param,
+	void (*iterator)(StringIndex item, void* param)) {
+	int state = 0;
+	StringIndex_public_iterate_range_imp(this, from, to, &state, param, iterator);
 }
